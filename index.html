@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FYREN SCAN DASHBOARD - Warehouse Resi Pro</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Html5-QRCode Library for Real Barcode Scanning -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        #camera-reader-in video, #camera-reader-out video { object-fit: cover !important; border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col selection:bg-sky-500 selection:text-white">
+
+    <!-- TOP HEADER (LIGHT THEME) -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-sm">
+        <!-- Left: 3-Dots Admin Menu & Logo -->
+        <div class="flex items-center space-x-3">
+            <button onclick="toggleAdminDrawer()" class="p-2.5 bg-white hover:bg-slate-100 active:scale-95 transition rounded-xl text-slate-700 border border-slate-200 flex items-center justify-center shadow-sm" title="Admin Menu (Titik 3)">
+                <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="navigateTo('settings')" title="Klik untuk Pengaturan Store">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm relative group">
+                    <img id="store-logo-img" src="" class="w-full h-full object-cover hidden" alt="Logo Toko">
+                    <div id="store-logo-fallback" class="w-full h-full bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-barcode"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 id="store-name-display" class="font-bold text-base tracking-tight text-slate-900">FYREN WAREHOUSE</h1>
+                    <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Admin Dashboard Pro</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Real-time Date, Month, Year -->
+        <div class="hidden md:flex flex-col items-center bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-2xl shadow-inner">
+            <div id="realtime-clock" class="text-sm font-bold text-sky-600 tracking-wide">--:--:--</div>
+            <div id="realtime-date" class="text-xs text-slate-500 font-medium">Memuat Tanggal...</div>
+        </div>
+
+        <!-- Right: Summary Header Info & Audio Toggle -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <div class="hidden sm:flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
+                <span class="text-slate-500">Bulan Ini:</span>
+                <span class="font-bold text-emerald-600" id="header-out-month">Out: 0</span>
+                <span class="text-slate-300">|</span>
+                <span class="font-bold text-rose-600" id="header-retur-month">Retur: 0</span>
+            </div>
+            <button onclick="toggleAudio()" id="audio-toggle-btn" class="p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-sky-600 transition shadow-sm" title="Audio Aktif/Mute">
+                <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MOBILE DATE SUBHEADER -->
+    <div class="md:hidden bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center text-xs text-slate-500">
+        <span id="realtime-date-mobile">Memuat Tanggal...</span>
+        <span id="realtime-clock-mobile" class="font-mono text-sky-600 font-bold">--:--:--</span>
+    </div>
+
+    <!-- MAIN CONTAINER - SEPARATED PAGES (SPA) -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+
+        <!-- ================= PAGE 1: DASHBOARD UTAMA ================= -->
+        <div id="page-dashboard" class="space-y-6">
+            <!-- Hero Top Cards: Scan In, Scan Out, Retur -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <!-- Scan In Masuk Gudang Utama -->
+                <div onclick="navigateTo('scanin')" class="cursor-pointer group relative overflow-hidden bg-white border-2 border-sky-200 hover:border-sky-500 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">Menu Utama</span>
+                            <h2 id="dash-total-scanin" class="text-4xl font-extrabold text-sky-600 mt-3">0</h2>
+                            <p class="text-xs font-semibold text-slate-600 mt-1"><i class="fa-solid fa-arrow-down text-sky-600 mr-1"></i> Scan In Masuk Gudang Utama</p>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 text-3xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-boxes-packing"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-400 to-blue-500"></div>
+                </div>
+
+                <!-- Total Scan Out -->
+                <div onclick="navigateTo('scanout')" class="cursor-pointer group relative overflow-hidden bg-white border border-slate-200 hover:border-emerald-400 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">Pengiriman</span>
+                            <h2 id="dash-total-scanout" class="text-4xl font-extrabold text-emerald-600 mt-3">0</h2>
+                            <p class="text-xs font-semibold text-slate-600 mt-1"><i class="fa-solid fa-truck-fast text-emerald-600 mr-1"></i> Total Scan Out Keluar Kirim</p>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-3xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-truck-ramp-box"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+                </div>
+
+                <!-- Total Retur (>3 Hari) -->
+                <div onclick="navigateTo('retur')" class="cursor-pointer group relative overflow-hidden bg-white border border-slate-200 hover:border-rose-400 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">Paket Kembali</span>
+                            <h2 id="dash-total-retur" class="text-4xl font-extrabold text-rose-600 mt-3">0</h2>
+                            <p class="text-xs font-semibold text-slate-600 mt-1"><i class="fa-solid fa-rotate-left text-rose-600 mr-1"></i> Total Retur Paket (>3 Hari)</p>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 text-3xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-400 to-red-500"></div>
+                </div>
+            </section>
+
+            <!-- TIME FILTER TABS (HARI INI, MINGGU INI, BULAN INI, TAHUN INI) TEPAT DI ATAS RINCIAN KURIR -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                <div class="flex items-center gap-2 px-2 text-xs font-bold text-slate-600">
+                    <i class="fa-solid fa-filter text-sky-600"></i>
+                    <span>Filter Waktu Statistik:</span>
+                </div>
+                <div class="flex items-center bg-slate-100 p-1 rounded-xl gap-1 w-full sm:w-auto">
+                    <button onclick="setTimeFilter('today')" id="filter-btn-today" class="time-filter-btn flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition bg-white text-sky-600 shadow-sm">
+                        Hari Ini
+                    </button>
+                    <button onclick="setTimeFilter('week')" id="filter-btn-week" class="time-filter-btn flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                        Minggu Ini
+                    </button>
+                    <button onclick="setTimeFilter('month')" id="filter-btn-month" class="time-filter-btn flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                        Bulan Ini
+                    </button>
+                    <button onclick="setTimeFilter('year')" id="filter-btn-year" class="time-filter-btn flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                        Tahun Ini
+                    </button>
+                </div>
+            </div>
+
+            <!-- Courier Breakdown Section (JNE, SICEPAT, ANTERAJA, SPX, JNT) with format Scan In / Scan Out / Retur -->
+            <section class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-sky-600"></i> Rincian Kurir & Rasio (Scan In / Scan Out / Retur)
+                        </h2>
+                        <p class="text-xs text-slate-500">Format statistik per kurir warehouse utama (contoh format: 2 / 9 / 0)</p>
+                    </div>
+                    <button onclick="navigateTo('data')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition">
+                        <i class="fa-solid fa-table mr-1"></i> Lihat Semua Data Resi
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <!-- JNE -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-blue-600">JNE</span>
+                            <span class="text-[10px] font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">CM...</span>
+                        </div>
+                        <div class="text-center bg-white p-3 rounded-xl border border-slate-200 shadow-inner">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Scan In / Out / Retur</div>
+                            <div id="ratio-JNE" class="text-base font-extrabold text-slate-800 font-mono mt-1">0 / 0 / 0</div>
+                        </div>
+                    </div>
+
+                    <!-- SICEPAT -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-emerald-600">SICEPAT</span>
+                            <span class="text-[10px] font-mono bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">SI...</span>
+                        </div>
+                        <div class="text-center bg-white p-3 rounded-xl border border-slate-200 shadow-inner">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Scan In / Out / Retur</div>
+                            <div id="ratio-SICEPAT" class="text-base font-extrabold text-slate-800 font-mono mt-1">0 / 0 / 0</div>
+                        </div>
+                    </div>
+
+                    <!-- ANTERAJA -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-purple-600">ANTERAJA</span>
+                            <span class="text-[10px] font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">AN...</span>
+                        </div>
+                        <div class="text-center bg-white p-3 rounded-xl border border-slate-200 shadow-inner">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Scan In / Out / Retur</div>
+                            <div id="ratio-ANTERAJA" class="text-base font-extrabold text-slate-800 font-mono mt-1">0 / 0 / 0</div>
+                        </div>
+                    </div>
+
+                    <!-- SPX -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-amber-600">SPX</span>
+                            <span class="text-[10px] font-mono bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold">SPX...</span>
+                        </div>
+                        <div class="text-center bg-white p-3 rounded-xl border border-slate-200 shadow-inner">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Scan In / Out / Retur</div>
+                            <div id="ratio-SPX" class="text-base font-extrabold text-slate-800 font-mono mt-1">0 / 0 / 0</div>
+                        </div>
+                    </div>
+
+                    <!-- JNT -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-red-600">JNT</span>
+                            <span class="text-[10px] font-mono bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">JY/JP...</span>
+                        </div>
+                        <div class="text-center bg-white p-3 rounded-xl border border-slate-200 shadow-inner">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Scan In / Out / Retur</div>
+                            <div id="ratio-JNT" class="text-base font-extrabold text-slate-800 font-mono mt-1">0 / 0 / 0</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+
+        <!-- ================= PAGE 2: SCAN IN (Penerimaan Paket) ================= -->
+        <div id="page-scanin" class="space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-down text-sky-600"></i> Halaman Scan In (Penerimaan Gudang)
+                        </h2>
+                        <p class="text-xs text-slate-500">Scan barcode resi masuk. Mendukung USB/Bluetooth Scanner & Kamera.</p>
+                    </div>
+                    <button onclick="toggleCamera('in')" class="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-semibold rounded-xl text-xs transition flex items-center gap-2">
+                        <i class="fa-solid fa-camera"></i> <span id="cam-btn-text-in">Buka Kamera Scanner</span>
+                    </button>
+                </div>
+
+                <!-- Input Form Scan In -->
+                <form onsubmit="handleScanInSubmit(event)" class="space-y-4">
+                    <div class="relative flex items-center">
+                        <div class="absolute left-4 text-slate-400 text-lg">
+                            <i class="fa-solid fa-barcode"></i>
+                        </div>
+                        <input type="text" id="input-scanin" autofocus autocomplete="off" placeholder="Scan atau ketik nomor resi (Scan In)..." class="w-full bg-slate-50 border-2 border-slate-300 focus:border-sky-500 rounded-2xl py-4 pl-12 pr-28 text-slate-900 placeholder-slate-400 font-mono text-base outline-none shadow-inner transition">
+                        <button type="submit" class="absolute right-2 bg-sky-600 hover:bg-sky-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition">
+                            PROSES
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Camera Container Scan In -->
+                <div id="container-camera-in" class="hidden bg-slate-900 rounded-2xl p-3 border border-slate-300 relative">
+                    <div id="camera-reader-in" class="w-full"></div>
+                    <p class="text-xs text-center text-slate-300 mt-2">Arahkan kamera ke barcode resi paket.</p>
+                </div>
+
+                <!-- Quick Test Buttons -->
+                <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <p class="text-xs font-semibold text-slate-600">Contoh Tes Scan In Berdasarkan Kurir:</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="processScanIn('SPX88991122')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-amber-700 shadow-sm">SPX (Shopee)</button>
+                        <button onclick="processScanIn('JY5544332211')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-red-600 shadow-sm">JY (J&T)</button>
+                        <button onclick="processScanIn('CM7788990011')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-blue-600 shadow-sm">CM (JNE)</button>
+                        <button onclick="processScanIn('SI3344556677')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-emerald-600 shadow-sm">SI (SiCepat)</button>
+                        <button onclick="processScanIn('AN1122334455')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-purple-600 shadow-sm">AN (AnterAja)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= PAGE 3: SCAN OUT (Pengiriman Kurir) ================= -->
+        <div id="page-scanout" class="space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-up text-emerald-600"></i> Halaman Scan Out (Pengiriman Kurir)
+                        </h2>
+                        <p class="text-xs text-slate-500">Scan resi yang akan dikirim keluar oleh kurir.</p>
+                    </div>
+                    <button onclick="toggleCamera('out')" class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-semibold rounded-xl text-xs transition flex items-center gap-2">
+                        <i class="fa-solid fa-camera"></i> <span id="cam-btn-text-out">Buka Kamera Scanner</span>
+                    </button>
+                </div>
+
+                <!-- Input Form Scan Out -->
+                <form onsubmit="handleScanOutSubmit(event)" class="space-y-4">
+                    <div class="relative flex items-center">
+                        <div class="absolute left-4 text-slate-400 text-lg">
+                            <i class="fa-solid fa-barcode"></i>
+                        </div>
+                        <input type="text" id="input-scanout" autocomplete="off" placeholder="Scan resi untuk Scan Out..." class="w-full bg-slate-50 border-2 border-slate-300 focus:border-emerald-500 rounded-2xl py-4 pl-12 pr-28 text-slate-900 placeholder-slate-400 font-mono text-base outline-none shadow-inner transition">
+                        <button type="submit" class="absolute right-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition">
+                            PROSES OUT
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Camera Container Scan Out -->
+                <div id="container-camera-out" class="hidden bg-slate-900 rounded-2xl p-3 border border-slate-300 relative">
+                    <div id="camera-reader-out" class="w-full"></div>
+                    <p class="text-xs text-center text-slate-300 mt-2">Arahkan kamera ke barcode resi untuk pengiriman.</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= PAGE 4: RETUR (Paket Kembali) ================= -->
+        <div id="page-retur" class="space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-rotate-left text-rose-600"></i> Halaman Scan Retur (Paket Kembali / >3 Hari)
+                        </h2>
+                        <p class="text-xs text-slate-500">Scan resi retur masuk. Mendukung USB/Bluetooth Scanner & Kamera.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="simulateReturTrigger()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700 transition">
+                            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Simulasi >3 Hari
+                        </button>
+                        <button onclick="toggleCamera('retur')" class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-semibold rounded-xl text-xs transition flex items-center gap-2">
+                            <i class="fa-solid fa-camera"></i> <span id="cam-btn-text-retur">Buka Kamera Scanner</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Form Scan Retur (UI SAMA PERSIS DENGAN SCAN IN & OUT) -->
+                <form onsubmit="handleScanReturSubmit(event)" class="space-y-4">
+                    <div class="relative flex items-center">
+                        <div class="absolute left-4 text-slate-400 text-lg">
+                            <i class="fa-solid fa-barcode"></i>
+                        </div>
+                        <input type="text" id="input-scanretur" autocomplete="off" placeholder="Scan atau ketik nomor resi retur..." class="w-full bg-slate-50 border-2 border-slate-300 focus:border-rose-500 rounded-2xl py-4 pl-12 pr-36 text-slate-900 placeholder-slate-400 font-mono text-base outline-none shadow-inner transition">
+                        <button type="submit" class="absolute right-2 bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition">
+                            PROSES RETUR
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Camera Container Scan Retur -->
+                <div id="container-camera-retur" class="hidden bg-slate-900 rounded-2xl p-3 border border-slate-300 relative">
+                    <div id="camera-reader-retur" class="w-full"></div>
+                    <p class="text-xs text-center text-slate-300 mt-2">Arahkan kamera ke barcode resi retur.</p>
+                </div>
+
+                <!-- Quick Test Buttons Retur -->
+                <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <p class="text-xs font-semibold text-slate-600">Contoh Tes Scan Retur Berdasarkan Kurir:</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="processScanRetur('SPX88991122')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-amber-700 shadow-sm">SPX Retur</button>
+                        <button onclick="processScanRetur('JY5544332211')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-red-600 shadow-sm">JY Retur</button>
+                        <button onclick="processScanRetur('CM7788990011')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-blue-600 shadow-sm">CM Retur</button>
+                        <button onclick="processScanRetur('SI3344556677')" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-emerald-600 shadow-sm">SI Retur</button>
+                    </div>
+                </div>
+
+                <!-- Daftar Tabel Paket Retur -->
+                <div class="pt-4 border-t border-slate-100 space-y-3">
+                    <h3 class="text-sm font-bold text-slate-900">Daftar Riwayat Paket Retur:</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-700">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-bold tracking-wider border-b border-slate-200">
+                                <tr>
+                                    <th class="py-3 px-4">No. Resi</th>
+                                    <th class="py-3 px-4">Kurir</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Waktu Scan</th>
+                                    <th class="py-3 px-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="retur-tbody" class="divide-y divide-slate-100">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="empty-retur-state" class="text-center py-8 text-slate-400 text-xs hidden">
+                        Tidak ada paket retur saat ini.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 5: DATA & LAPORAN RESI ================= -->
+        <div id="page-data" class="space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-sky-600"></i> Data Resi Dipisah
+                        </h2>
+                        <p class="text-xs text-slate-500">Pencarian dan manajemen riwayat resi berdasarkan status dan jam scan.</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <input type="text" id="search-all-input" onkeyup="renderDataResiTab()" placeholder="Cari nomor resi..." class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 w-full sm:w-60 outline-none focus:border-sky-500">
+                        <button onclick="resetAllData()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl text-xs font-semibold transition" title="Reset Semua Data">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3 TAB BUTTONS: SCAN IN, SCAN OUT, RETUR -->
+                <div class="flex items-center bg-slate-100 p-1.5 rounded-2xl gap-2">
+                    <button onclick="switchDataTab('in')" id="tab-btn-in" class="flex-1 py-2 rounded-xl text-xs font-bold transition bg-white text-sky-600 shadow-sm border border-slate-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-down text-sky-600"></i>
+                        <span>1. Data Scan In (<span id="count-tab-in">0</span>)</span>
+                    </button>
+                    <button onclick="switchDataTab('out')" id="tab-btn-out" class="flex-1 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-up text-emerald-600"></i>
+                        <span>2. Data Scan Out (<span id="count-tab-out">0</span>)</span>
+                    </button>
+                    <button onclick="switchDataTab('retur')" id="tab-btn-retur" class="flex-1 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-rose-600"></i>
+                        <span>3. Data Retur (<span id="count-tab-retur">0</span>)</span>
+                    </button>
+                </div>
+
+                <!-- Table Container Data Resi -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-700">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-bold tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">No. Resi</th>
+                                <th class="py-3 px-4">Kurir</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4" id="th-time-label">Waktu Tanggal & Jam Scan</th>
+                                <th class="py-3 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="all-receipts-tbody" class="divide-y divide-slate-100">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-all-state" class="text-center py-10 text-slate-400 text-xs hidden">
+                    Belum ada data resi tersimpan di tab ini.
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 6: PENGATURAN STORE & DATA (SETTINGS) ================= -->
+        <div id="page-settings" class="space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                <div class="border-b border-slate-100 pb-4">
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-gear text-sky-600"></i> Pengaturan Store & Manajemen Data
+                    </h2>
+                    <p class="text-xs text-slate-500">Atur profil toko, upload foto logo, serta ekspor & impor backup data tanpa database server.</p>
+                </div>
+
+                <!-- Store Profile & Logo Upload Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Update Store Info -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-store text-sky-600"></i> Profil Toko & Logo
+                        </h3>
+
+                        <!-- Logo Preview & Input File -->
+                        <div class="flex items-center space-x-4">
+                            <div class="w-16 h-16 rounded-2xl border-2 border-slate-300 overflow-hidden bg-white flex items-center justify-center shadow-sm relative">
+                                <img id="settings-logo-preview" src="" class="w-full h-full object-cover hidden" alt="Preview Logo">
+                                <div id="settings-logo-fallback" class="w-full h-full bg-sky-600 text-white flex items-center justify-center text-2xl font-bold">
+                                    <i class="fa-solid fa-barcode"></i>
+                                </div>
+                            </div>
+                            <div class="flex-1 space-y-2">
+                                <label class="block text-xs font-semibold text-slate-700">Upload Foto Logo Store</label>
+                                <input type="file" id="logo-file-input" accept="image/*" onchange="handleLogoUpload(event)" class="text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 cursor-pointer">
+                                <p class="text-[10px] text-slate-400">Format: PNG, JPG, WEBP. Otomatis tersimpan di browser.</p>
+                            </div>
+                        </div>
+
+                        <!-- Store Name Input -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-slate-700">Nama Toko / Gudang</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="store-name-input" placeholder="Masukkan nama toko..." class="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-sky-500 font-semibold">
+                                <button onclick="saveStoreName()" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                                    Simpan Nama
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Backup & Restore Data JSON Section -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-database text-emerald-600"></i> Backup & Restore Data Resi (Tanpa DB)
+                        </h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Karena aplikasi tidak menggunakan database server, gunakan fitur di bawah ini untuk mengunduh cadangan data resi atau memulihkan data dari file JSON.
+                        </p>
+
+                        <div class="space-y-3 pt-2">
+                            <!-- Download Data -->
+                            <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">Unduh Backup Data (.json)</h4>
+                                    <p class="text-[10px] text-slate-400">Simpan seluruh riwayat resi ke komputer/HP.</p>
+                                </div>
+                                <button onclick="exportDataJSON()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-download"></i> Unduh Data
+                                </button>
+                            </div>
+
+                            <!-- Upload Data -->
+                            <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                                <div class="flex-1 mr-2">
+                                    <h4 class="text-xs font-bold text-slate-800">Unggah / Restore Data (.json)</h4>
+                                    <input type="file" id="import-json-file" accept=".json" class="mt-1 text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-slate-100 file:text-slate-700 cursor-pointer">
+                                </div>
+                                <button onclick="importDataJSON()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0">
+                                    <i class="fa-solid fa-upload"></i> Unggah Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-500 mt-auto">
+        FYREN SCAN WAREHOUSE DASHBOARD &copy; 2026 — Light Theme SPA. All Rights Reserved.
+    </footer>
+
+    <!-- ADMIN MENU DRAWER (SIDEBAR) - TRIGGERED BY TOP LEFT 3-DOTS BUTTON -->
+    <div id="admin-drawer-backdrop" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 hidden transition-opacity opacity-0" onclick="toggleAdminDrawer()"></div>
+    <div id="admin-drawer" class="fixed top-0 left-0 bottom-0 w-80 bg-white border-r border-slate-200 z-50 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-900 text-sm">Admin Menu (Titik 3)</h3>
+                    <p class="text-[10px] text-slate-500 font-medium">Navigasi Halaman Terpisah</p>
+                </div>
+            </div>
+            <button onclick="toggleAdminDrawer()" class="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-1.5">
+            <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider px-3 mb-1">Daftar Menu Navigasi</p>
+            <button onclick="navigateTo('dashboard')" class="nav-menu-btn w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-3 transition">
+                <i class="fa-solid fa-chart-pie text-sky-600 w-4 text-base"></i> 1. Dashboard Utama
+            </button>
+            <button onclick="navigateTo('scanin')" class="nav-menu-btn w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-3 transition">
+                <i class="fa-solid fa-arrow-down text-sky-600 w-4 text-base"></i> 2. Scan In (Masuk Gudang Utama)
+            </button>
+            <button onclick="navigateTo('scanout')" class="nav-menu-btn w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-3 transition">
+                <i class="fa-solid fa-arrow-up text-emerald-600 w-4 text-base"></i> 3. Scan Out (Keluar Kirim Kurir)
+            </button>
+            <button onclick="navigateTo('retur')" class="nav-menu-btn w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-3 transition">
+                <i class="fa-solid fa-rotate-left text-rose-600 w-4 text-base"></i> 4. Retur (Paket Kembalikan / 3 Hari Lebih)
+            </button>
+            <button onclick="navigateTo('data')" class="nav-menu-btn w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-3 transition">
+                <i class="fa-solid fa-table-list text-blue-600 w-4 text-base"></i> 5. Data Resi
+            </button>
+            <button onclick="navigateTo('settings')" class="nav-menu-btn w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-3 transition">
+                <i class="fa-solid fa-gear text-amber-600 w-4 text-base"></i> 6. Pengaturan Store & Data
+            </button>
+        </div>
+
+        <div class="p-4 border-t border-slate-100 bg-slate-50 text-center text-xs text-slate-500">
+            FYREN WAREHOUSE ADMIN &bull; Light Edition
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION FLOATING -->
+    <div id="toast-box" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-white border border-slate-200 shadow-xl rounded-2xl p-4 flex items-center space-x-3 max-w-sm">
+        <div id="toast-icon" class="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-info"></i>
+        </div>
+        <div>
+            <div id="toast-title" class="font-bold text-slate-900 text-xs">Notifikasi</div>
+            <div id="toast-desc" class="text-xs text-slate-500 font-mono">Pesan sistem...</div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // State Management
+        let audioEnabled = true;
+        let activePage = 'dashboard';
+        let currentTimeFilter = 'today'; // today, week, month, year
+        let activeDataTab = 'in'; // 'in', 'out', 'retur'
+        let storeName = localStorage.getItem('fyren_store_name') || 'FYREN WAREHOUSE';
+        let storeLogoBase64 = localStorage.getItem('fyren_store_logo') || '';
+
+        let cameraActiveIn = false;
+        let cameraActiveOut = false;
+        let cameraActiveRetur = false;
+        let html5QrCodeIn = null;
+        let html5QrCodeOut = null;
+        let html5QrCodeRetur = null;
+
+        // Strict Scan & Audio Debounce Locks (Anti Spam)
+        let isProcessingScan = false;
+        let lastScannedBarcode = '';
+        let scanCooldownTimer = null;
+
+        // Receipts Data Storage
+        let receiptsData = JSON.parse(localStorage.getItem('fyren_warehouse_receipts')) || [
+            { code: 'SPX12345678', courier: 'SPX', status: 'SCAN_IN', scanInTime: new Date().toISOString(), scanOutTime: null, timestamp: Date.now() },
+            { code: 'JY987654321', courier: 'JNT', status: 'SCAN_OUT', scanInTime: new Date(Date.now() - 86400000).toISOString(), scanOutTime: new Date().toISOString(), timestamp: Date.now() - 86400000 },
+            { code: 'CM112233445', courier: 'JNE', status: 'SCAN_IN', scanInTime: new Date().toISOString(), scanOutTime: null, timestamp: Date.now() }
+        ];
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            updateRealtimeClock();
+            setInterval(updateRealtimeClock, 1000);
+            initStoreSettingsUI();
+            checkAutomaticRetur();
+            updateDashboardAndMetrics();
+            renderReturTable();
+            renderDataResiTab();
+            navigateTo('dashboard');
+        };
+
+        // Initialize & Render Store Profile (Logo & Name)
+        function initStoreSettingsUI() {
+            const nameDisplay = document.getElementById('store-name-display');
+            const nameInput = document.getElementById('store-name-input');
+            if(nameDisplay) nameDisplay.innerText = storeName;
+            if(nameInput) nameInput.value = storeName;
+
+            renderLogoImage(storeLogoBase64);
+        }
+
+        // Render Logo Photo dynamically across header and settings
+        function renderLogoImage(base64Data) {
+            const headerImg = document.getElementById('store-logo-img');
+            const headerFallback = document.getElementById('store-logo-fallback');
+            const setImg = document.getElementById('settings-logo-preview');
+            const setFallback = document.getElementById('settings-logo-fallback');
+
+            if(base64Data) {
+                if(headerImg) { headerImg.src = base64Data; headerImg.classList.remove('hidden'); }
+                if(headerFallback) { headerFallback.classList.add('hidden'); }
+                if(setImg) { setImg.src = base64Data; setImg.classList.remove('hidden'); }
+                if(setFallback) { setFallback.classList.add('hidden'); }
+            } else {
+                if(headerImg) { headerImg.classList.add('hidden'); }
+                if(headerFallback) { headerFallback.classList.remove('hidden'); }
+                if(setImg) { setImg.classList.add('hidden'); }
+                if(setFallback) { setFallback.classList.remove('hidden'); }
+            }
+        }
+
+        // Save Store Name
+        function saveStoreName() {
+            const input = document.getElementById('store-name-input');
+            if(!input || !input.value.trim()) {
+                showToast("Peringatan", "Nama toko tidak boleh kosong.", "amber");
+                return;
+            }
+            storeName = input.value.trim();
+            localStorage.setItem('fyren_store_name', storeName);
+            document.getElementById('store-name-display').innerText = storeName;
+            showToast("Berhasil Disimpan", `Nama toko diubah menjadi "${storeName}".`, "sky");
+        }
+
+        // Handle Logo Photo Upload (Convert to Base64 & Save to localStorage)
+        function handleLogoUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                showToast("Ukuran Terlalu Besar", "Ukuran foto maksimal 2MB.", "rose");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                storeLogoBase64 = event.target.result;
+                localStorage.setItem('fyren_store_logo', storeLogoBase64);
+                renderLogoImage(storeLogoBase64);
+                showToast("Logo Diperbarui", "Foto logo toko berhasil diganti dan tersimpan.", "emerald");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Export All Data to JSON File
+        function exportDataJSON() {
+            const exportObj = {
+                storeName: storeName,
+                receipts: receiptsData,
+                exportedAt: new Date().toISOString()
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `FYREN_BACKUP_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("Backup Berhasil", "File JSON berhasil diunduh.", "emerald");
+        }
+
+        // Import Data from JSON File
+        function importDataJSON() {
+            const fileInput = document.getElementById('import-json-file');
+            if(!fileInput || !fileInput.files[0]) {
+                showToast("Peringatan", "Pilih file .json terlebih dahulu.", "amber");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if(imported.receipts && Array.isArray(imported.receipts)) {
+                        receiptsData = imported.receipts;
+                        if(imported.storeName) {
+                            storeName = imported.storeName;
+                            localStorage.setItem('fyren_store_name', storeName);
+                        }
+                        saveAndRefresh();
+                        initStoreSettingsUI();
+                        showToast("Restore Berhasil", `${receiptsData.length} data resi berhasil dipulihkan.`, "emerald");
+                    } else {
+                        showToast("Format Salah", "File JSON tidak valid untuk data resi.", "rose");
+                    }
+                } catch(err) {
+                    showToast("Error Import", "Gagal membaca file JSON.", "rose");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Single Page Application Navigation
+        function navigateTo(pageId) {
+            activePage = pageId;
+            const pages = ['dashboard', 'scanin', 'scanout', 'retur', 'data', 'settings'];
+            
+            pages.forEach(p => {
+                const el = document.getElementById(`page-${p}`);
+                if(el) {
+                    if(p === pageId) el.classList.remove('hidden');
+                    else el.classList.add('hidden');
+                }
+            });
+
+            // Close drawer if open
+            const drawer = document.getElementById('admin-drawer');
+            const backdrop = document.getElementById('admin-drawer-backdrop');
+            if(drawer && !drawer.classList.contains('-translate-x-full')) {
+                drawer.classList.add('-translate-x-full');
+                backdrop.classList.add('opacity-0', 'hidden');
+            }
+
+            // Auto focus inputs based on page
+            if(pageId === 'scanin') {
+                setTimeout(() => { const inp = document.getElementById('input-scanin'); if(inp) inp.focus(); }, 100);
+            } else if(pageId === 'scanout') {
+                setTimeout(() => { const inp = document.getElementById('input-scanout'); if(inp) inp.focus(); }, 100);
+            } else if(pageId === 'retur') {
+                setTimeout(() => { const inp = document.getElementById('input-scanretur'); if(inp) inp.focus(); }, 100);
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Set Dashboard Time Range Filter (Hari ini, Minggu ini, Bulan ini, Tahun ini)
+        function setTimeFilter(filterType) {
+            currentTimeFilter = filterType;
+            const buttons = ['today', 'week', 'month', 'year'];
+
+            buttons.forEach(b => {
+                const btn = document.getElementById(`filter-btn-${b}`);
+                if(btn) {
+                    if(b === filterType) {
+                        btn.className = "time-filter-btn flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition bg-white text-sky-600 shadow-sm border border-slate-200";
+                    } else {
+                        btn.className = "time-filter-btn flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900";
+                    }
+                }
+            });
+
+            updateDashboardAndMetrics();
+        }
+
+        // Check if receipt timestamp falls into active time filter
+        function isWithinTimeFilter(timestampMs) {
+            if(!timestampMs) return false;
+            const date = new Date(timestampMs);
+            const now = new Date();
+
+            if (currentTimeFilter === 'today') {
+                return date.toDateString() === now.toDateString();
+            } else if (currentTimeFilter === 'week') {
+                const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+                return (now.getTime() - date.getTime()) <= oneWeekMs;
+            } else if (currentTimeFilter === 'month') {
+                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+            } else if (currentTimeFilter === 'year') {
+                return date.getFullYear() === now.getFullYear();
+            }
+            return true;
+        }
+
+        // Update Dashboard Cards and Courier Metrics Ratio filtered by Time
+        function updateDashboardAndMetrics() {
+            let totalScanIn = 0;
+            let totalScanOut = 0;
+            let totalRetur = 0;
+
+            let outMonth = 0;
+            let returMonth = 0;
+            const curMonth = new Date().getMonth();
+            const curYear = new Date().getFullYear();
+
+            const courierMap = {
+                JNE: { in: 0, out: 0, retur: 0 },
+                SICEPAT: { in: 0, out: 0, retur: 0 },
+                ANTERAJA: { in: 0, out: 0, retur: 0 },
+                SPX: { in: 0, out: 0, retur: 0 },
+                JNT: { in: 0, out: 0, retur: 0 }
+            };
+
+            receiptsData.forEach(item => {
+                const dIn = new Date(item.scanInTime || item.timestamp);
+                const dOut = item.scanOutTime ? new Date(item.scanOutTime) : null;
+                
+                const isMonthIn = dIn.getMonth() === curMonth && dIn.getFullYear() === curYear;
+                const isMonthOut = dOut && dOut.getMonth() === curMonth && dOut.getFullYear() === curYear;
+
+                if (isMonthOut && item.status === 'SCAN_OUT') outMonth++;
+                if (isMonthIn && item.status === 'RETUR') returMonth++;
+
+                // Filter by Time Filter Tab for Scan In items
+                if (isWithinTimeFilter(dIn.getTime()) && item.status === 'SCAN_IN') {
+                    totalScanIn++;
+                    if(courierMap[item.courier]) courierMap[item.courier].in++;
+                }
+
+                // Filter by Time Filter Tab for Scan Out items
+                if (item.status === 'SCAN_OUT' && ((dOut && isWithinTimeFilter(dOut.getTime())) || (!dOut && isWithinTimeFilter(dIn.getTime())))) {
+                    totalScanOut++;
+                    if(courierMap[item.courier]) courierMap[item.courier].out++;
+                }
+
+                // Filter by Time Filter Tab for Retur items
+                if (item.status === 'RETUR' && isWithinTimeFilter(dIn.getTime())) {
+                    totalRetur++;
+                    if(courierMap[item.courier]) courierMap[item.courier].retur++;
+                }
+            });
+
+            // Update Dash Cards
+            document.getElementById('dash-total-scanin').innerText = totalScanIn;
+            document.getElementById('dash-total-scanout').innerText = totalScanOut;
+            document.getElementById('dash-total-retur').innerText = totalRetur;
+
+            document.getElementById('header-out-month').innerText = `Out: ${outMonth}`;
+            document.getElementById('header-retur-month').innerText = `Retur: ${returMonth}`;
+
+            // Update Courier Ratios (Format Scan In / Scan Out / Retur)
+            Object.keys(courierMap).forEach(k => {
+                const c = courierMap[k];
+                const el = document.getElementById(`ratio-${k}`);
+                if(el) el.innerText = `${c.in} / ${c.out} / ${c.retur}`;
+            });
+        }
+
+        // Realtime Clock & Date
+        function updateRealtimeClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID');
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateString = now.toLocaleDateString('id-ID', options);
+
+            const clockEl = document.getElementById('realtime-clock');
+            const dateEl = document.getElementById('realtime-date');
+            const clockMob = document.getElementById('realtime-clock-mobile');
+            const dateMob = document.getElementById('realtime-date-mobile');
+
+            if(clockEl) clockEl.innerText = timeString;
+            if(dateEl) dateEl.innerText = dateString;
+            if(clockMob) clockMob.innerText = timeString;
+            if(dateMob) dateMob.innerText = dateString;
+        }
+
+        // Toggle Admin Drawer (Titik 3 Kiri Atas)
+        function toggleAdminDrawer() {
+            const drawer = document.getElementById('admin-drawer');
+            const backdrop = document.getElementById('admin-drawer-backdrop');
+            const isOpen = !drawer.classList.contains('-translate-x-full');
+
+            if (isOpen) {
+                drawer.classList.add('-translate-x-full');
+                backdrop.classList.add('opacity-0', 'hidden');
+            } else {
+                drawer.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+                setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+            }
+        }
+
+        // Toggle Audio
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            if(audioEnabled) {
+                icon.className = "fa-solid fa-volume-high";
+                showToast("Audio Aktif", "Suara speech otomatis aktif.", "sky");
+            } else {
+                icon.className = "fa-solid fa-volume-xmark";
+                if('speechSynthesis' in window) window.speechSynthesis.cancel();
+                showToast("Audio Mute", "Suara dinonaktifkan.", "slate");
+            }
+        }
+
+        // Strict Single-Fire Speech Helper (No Spam)
+        function playSpeech(text) {
+            if(!audioEnabled) return;
+            if('speechSynthesis' in window) {
+                // Cancel any previous speech instantly so audio never overlaps or spams
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Courier Prefix Detector
+        function detectCourier(code) {
+            const upper = code.trim().toUpperCase();
+            if(upper.startsWith('SPX')) return 'SPX';
+            if(upper.startsWith('JY') || upper.startsWith('JP') || upper.startsWith('JX')) return 'JNT';
+            if(upper.startsWith('CM') || upper.startsWith('JNE')) return 'JNE';
+            if(upper.startsWith('SI') || upper.startsWith('TKP') || upper.startsWith('00') || upper.startsWith('10')) return 'SICEPAT';
+            if(upper.startsWith('AN') || upper.startsWith('ST') || upper.startsWith('AL')) return 'ANTERAJA';
+            return 'JNT'; // Default fallback
+        }
+
+        // Speak courier name ONCE on scan
+        function speakCourier(courier) {
+            if(courier === 'SPX') playSpeech("SHOPEE");
+            else if(courier === 'JNT') playSpeech("JNT");
+            else if(courier === 'JNE') playSpeech("JNE");
+            else if(courier === 'SICEPAT') playSpeech("SECEPAT");
+            else playSpeech("ANTERAJA");
+        }
+
+        // Camera / Barcode Input Handler Guard (Prevents Spamming on continuous frames)
+        function handleBarcodeScanned(code, mode) {
+            const cleanCode = code.trim();
+            if (!cleanCode) return;
+
+            // Check if system is currently locked or same barcode scanned repeatedly within 3s
+            if (isProcessingScan || (lastScannedBarcode === cleanCode)) {
+                return; // BLOCK CONTINUOUS CAMERA FRAMES
+            }
+
+            // Lock scanner & set last scanned barcode
+            isProcessingScan = true;
+            lastScannedBarcode = cleanCode;
+
+            // Process scan logic based on mode
+            if (mode === 'in') {
+                processScanIn(cleanCode);
+            } else if (mode === 'out') {
+                processScanOut(cleanCode);
+            } else if (mode === 'retur') {
+                processScanRetur(cleanCode);
+            }
+
+            // Clear lock after 3 seconds so the camera can scan a new barcode or retry
+            clearTimeout(scanCooldownTimer);
+            scanCooldownTimer = setTimeout(() => {
+                isProcessingScan = false;
+                lastScannedBarcode = '';
+            }, 3000);
+        }
+
+        // ================= SCAN IN LOGIC =================
+        function handleScanInSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('input-scanin');
+            const code = input.value.trim();
+            if(!code) return;
+            
+            // Reset locks for manual/USB scanner submit
+            isProcessingScan = false;
+            lastScannedBarcode = '';
+
+            handleBarcodeScanned(code, 'in');
+            input.value = '';
+            input.focus();
+        }
+
+        function processScanIn(code) {
+            const courier = detectCourier(code);
+            const existing = receiptsData.find(r => r.code.toUpperCase() === code.toUpperCase());
+
+            if(existing) {
+                // If scanned twice in session -> Double Resi
+                playSpeech("DOUBLE RESI");
+                showToast(`DOUBLE RESI: ${code}`, "Nomor resi ini sudah pernah di-scan in!", "amber");
+            } else {
+                receiptsData.unshift({
+                    code: code,
+                    courier: courier,
+                    status: 'SCAN_IN',
+                    scanInTime: new Date().toISOString(),
+                    scanOutTime: null,
+                    timestamp: Date.now()
+                });
+                speakCourier(courier);
+                showToast(`Scan In Berhasil: ${code}`, `Kurir: ${courier} masuk gudang.`, "sky");
+            }
+
+            saveAndRefresh();
+        }
+
+        // ================= SCAN OUT LOGIC =================
+        function handleScanOutSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('input-scanout');
+            const code = input.value.trim();
+            if(!code) return;
+
+            isProcessingScan = false;
+            lastScannedBarcode = '';
+
+            handleBarcodeScanned(code, 'out');
+            input.value = '';
+            input.focus();
+        }
+
+        function processScanOut(code) {
+            const courier = detectCourier(code);
+            const existing = receiptsData.find(r => r.code.toUpperCase() === code.toUpperCase());
+
+            if(existing) {
+                if(existing.status === 'SCAN_OUT') {
+                    playSpeech("DOUBLE RESI");
+                    showToast(`DOUBLE RESI BOSQU: ${code}`, "Nomor resi ini sudah pernah di-scan out!", "amber");
+                } else {
+                    existing.status = 'SCAN_OUT';
+                    existing.scanOutTime = new Date().toISOString();
+                    speakCourier(courier);
+                    showToast(`Scan Out Berhasil: ${code}`, `Paket ${courier} berhasil di-scan keluar.`, "emerald");
+                }
+            } else {
+                receiptsData.unshift({
+                    code: code,
+                    courier: courier,
+                    status: 'SCAN_OUT',
+                    scanInTime: new Date().toISOString(),
+                    scanOutTime: new Date().toISOString(),
+                    timestamp: Date.now()
+                });
+                speakCourier(courier);
+                showToast(`Scan Out Langsung: ${code}`, `Paket ${courier} keluar kirim.`, "emerald");
+            }
+
+            saveAndRefresh();
+        }
+
+        // ================= SCAN RETUR LOGIC =================
+        function handleScanReturSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('input-scanretur');
+            const code = input.value.trim();
+            if(!code) return;
+
+            isProcessingScan = false;
+            lastScannedBarcode = '';
+
+            handleBarcodeScanned(code, 'retur');
+            input.value = '';
+            input.focus();
+        }
+
+        function processScanRetur(code) {
+            const courier = detectCourier(code);
+            const existing = receiptsData.find(r => r.code.toUpperCase() === code.toUpperCase());
+
+            if(existing) {
+                if(existing.status === 'RETUR') {
+                    playSpeech("DOUBLE RESI");
+                    showToast(`DOUBLE RESI RETUR: ${code}`, "Resi ini sudah berstatus retur!", "amber");
+                } else {
+                    existing.status = 'RETUR';
+                    playSpeech("RETUR");
+                    showToast(`Scan Retur Berhasil: ${code}`, `Status resi ${courier} diubah jadi RETUR.`, "rose");
+                }
+            } else {
+                receiptsData.unshift({
+                    code: code,
+                    courier: courier,
+                    status: 'RETUR',
+                    scanInTime: new Date().toISOString(),
+                    scanOutTime: null,
+                    timestamp: Date.now()
+                });
+                playSpeech("RETUR");
+                showToast(`Scan Retur Langsung: ${code}`, `Resi ${courier} dicatat retur.`, "rose");
+            }
+
+            saveAndRefresh();
+        }
+
+        // Check & Auto-flag items older than 3 days as Retur
+        function checkAutomaticRetur() {
+            const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            receiptsData.forEach(item => {
+                if(item.status === 'SCAN_IN' && (now - item.timestamp > threeDaysMs)) {
+                    item.status = 'RETUR';
+                }
+            });
+        }
+
+        // Simulate Retur for items >3 Days (Test Button)
+        function simulateReturTrigger() {
+            if(receiptsData.length === 0) {
+                showToast("Data Kosong", "Tambahkan resi Scan In terlebih dahulu untuk tes.", "amber");
+                return;
+            }
+            const scanInItem = receiptsData.find(r => r.status === 'SCAN_IN');
+            if(scanInItem) {
+                scanInItem.timestamp = Date.now() - (4 * 24 * 60 * 60 * 1000); // 4 days ago
+                scanInItem.status = 'RETUR';
+                saveAndRefresh();
+                playSpeech("RETUR");
+                showToast("Simulasi Retur (>3 Hari)", `Resi ${scanInItem.code} diubah menjadi Retur.`, "rose");
+            } else {
+                showToast("Info", "Tidak ada paket dengan status SCAN IN untuk disimulasikan.", "sky");
+            }
+        }
+
+        // Render Retur Table
+        function renderReturTable() {
+            const tbody = document.getElementById('retur-tbody');
+            const emptyState = document.getElementById('empty-retur-state');
+            if(!tbody) return;
+
+            tbody.innerHTML = '';
+            const returList = receiptsData.filter(r => r.status === 'RETUR');
+
+            if(returList.length === 0) {
+                if(emptyState) emptyState.classList.remove('hidden');
+                return;
+            } else {
+                if(emptyState) emptyState.classList.add('hidden');
+            }
+
+            returList.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition font-mono border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-900">${item.code}</td>
+                    <td class="py-3 px-4 font-bold text-slate-700">${item.courier}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">RETUR (>3 Hari)</span></td>
+                    <td class="py-3 px-4 text-slate-500 text-[11px]">${new Date(item.scanInTime).toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="deleteReceipt('${item.code}')" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded transition border border-rose-200" title="Hapus">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Save & Refresh UI
+        function saveAndRefresh() {
+            localStorage.setItem('fyren_warehouse_receipts', JSON.stringify(receiptsData));
+            updateDashboardAndMetrics();
+            renderReturTable();
+            renderDataResiTab();
+        }
+
+        // Switch Tab Data Resi (In, Out, Retur)
+        function switchDataTab(tabType) {
+            activeDataTab = tabType;
+            const tabs = ['in', 'out', 'retur'];
+
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if(btn) {
+                    if(t === tabType) {
+                        btn.className = "flex-1 py-2 rounded-xl text-xs font-bold transition bg-white shadow-sm border border-slate-200 flex items-center justify-center gap-2 " + 
+                                       (t === 'in' ? 'text-sky-600' : t === 'out' ? 'text-emerald-600' : 'text-rose-600');
+                    } else {
+                        btn.className = "flex-1 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
+                    }
+                }
+            });
+
+            renderDataResiTab();
+        }
+
+        // Render Separated Data Resi Table with Timestamps
+        function renderDataResiTab() {
+            const tbody = document.getElementById('all-receipts-tbody');
+            const empty = document.getElementById('empty-all-state');
+            const thTime = document.getElementById('th-time-label');
+            const query = document.getElementById('search-all-input')?.value.toLowerCase() || '';
+            if(!tbody) return;
+
+            // Count for Tab Badges
+            const inCount = receiptsData.filter(r => r.status === 'SCAN_IN').length;
+            const outCount = receiptsData.filter(r => r.status === 'SCAN_OUT').length;
+            const returCount = receiptsData.filter(r => r.status === 'RETUR').length;
+
+            if(document.getElementById('count-tab-in')) document.getElementById('count-tab-in').innerText = inCount;
+            if(document.getElementById('count-tab-out')) document.getElementById('count-tab-out').innerText = outCount;
+            if(document.getElementById('count-tab-retur')) document.getElementById('count-tab-retur').innerText = returCount;
+
+            // Filter by active tab & search query
+            let targetStatus = 'SCAN_IN';
+            if(activeDataTab === 'out') targetStatus = 'SCAN_OUT';
+            if(activeDataTab === 'retur') targetStatus = 'RETUR';
+
+            if(thTime) {
+                if(activeDataTab === 'in') thTime.innerText = 'Tanggal & Jam Scan In';
+                else if(activeDataTab === 'out') thTime.innerText = 'Tanggal & Jam Scan Out';
+                else thTime.innerText = 'Tanggal & Jam Retur';
+            }
+
+            const filtered = receiptsData.filter(r => {
+                const matchesStatus = r.status === targetStatus;
+                const matchesSearch = r.code.toLowerCase().includes(query) || r.courier.toLowerCase().includes(query);
+                return matchesStatus && matchesSearch;
+            });
+
+            tbody.innerHTML = '';
+
+            if(filtered.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            } else {
+                empty.classList.add('hidden');
+            }
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition font-mono border-b border-slate-100";
+                
+                let badge = `<span class="px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">SCAN IN</span>`;
+                let timeDisplay = item.scanInTime ? new Date(item.scanInTime).toLocaleString('id-ID') : '-';
+
+                if(item.status === 'SCAN_OUT') {
+                    badge = `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">SCAN OUT</span>`;
+                    timeDisplay = item.scanOutTime ? new Date(item.scanOutTime).toLocaleString('id-ID') : timeDisplay;
+                } else if(item.status === 'RETUR') {
+                    badge = `<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">RETUR</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-900">${item.code}</td>
+                    <td class="py-3 px-4 font-bold text-slate-700">${item.courier}</td>
+                    <td class="py-3 px-4">${badge}</td>
+                    <td class="py-3 px-4 text-slate-700 font-semibold text-[11px]"><i class="fa-regular fa-clock text-slate-400 mr-1"></i>${timeDisplay}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="deleteReceipt('${item.code}')" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded transition border border-rose-200" title="Hapus">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render All Receipts Table
+        function renderAllReceiptsTable() {
+            const tbody = document.getElementById('all-receipts-tbody');
+            const empty = document.getElementById('empty-all-state');
+            const query = document.getElementById('search-all-input')?.value.toLowerCase() || '';
+            if(!tbody) return;
+
+            tbody.innerHTML = '';
+            const filtered = receiptsData.filter(r => r.code.toLowerCase().includes(query) || r.courier.toLowerCase().includes(query));
+
+            if(filtered.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            } else {
+                empty.classList.add('hidden');
+            }
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition font-mono border-b border-slate-100 border-b border-slate-100";
+                
+                let badge = `<span class="px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">SCAN IN</span>`;
+                if(item.status === 'SCAN_OUT') badge = `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">SCAN OUT</span>`;
+                if(item.status === 'RETUR') badge = `<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">RETUR</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-900">${item.code}</td>
+                    <td class="py-3 px-4 font-bold text-slate-700">${item.courier}</td>
+                    <td class="py-3 px-4">${badge}</td>
+                    <td class="py-3 px-4 text-slate-500 text-[11px]">${new Date(item.scanInTime).toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-slate-500 text-[11px]">${item.scanOutTime ? new Date(item.scanOutTime).toLocaleString('id-ID') : '-'}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="deleteReceipt('${item.code}')" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded transition border border-rose-200" title="Hapus">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteReceipt(code) {
+            receiptsData = receiptsData.filter(r => r.code !== code);
+            saveAndRefresh();
+            showToast("Resi Dihapus", `Nomor resi ${code} dihapus dari sistem.`, "rose");
+        }
+
+        function resetAllData() {
+            if(confirm('Apakah Anda ingin mereset seluruh database resi warehouse?')) {
+                receiptsData = [];
+                saveAndRefresh();
+                showToast("Data Direset", "Semua riwayat resi telah dibersihkan.", "rose");
+            }
+        }
+
+        // ================= CAMERA SCANNER (Html5-QRCode) WITH ANTI-SPAM LOCK =================
+        async function toggleCamera(type) {
+            if(type === 'in') {
+                cameraActiveIn = !cameraActiveIn;
+                const container = document.getElementById('container-camera-in');
+                const btnText = document.getElementById('cam-btn-text-in');
+
+                if(cameraActiveIn) {
+                    container.classList.remove('hidden');
+                    btnText.innerText = "Tutup Kamera";
+                    try {
+                        html5QrCodeIn = new Html5Qrcode("camera-reader-in");
+                        await html5QrCodeIn.start({ facingMode: "environment" }, { fps: 15, qrbox: 220 }, (txt) => {
+                            if(txt) handleBarcodeScanned(txt, 'in');
+                        }, () => {});
+                    } catch(e) { console.error(e); }
+                } else {
+                    if(html5QrCodeIn) { try { await html5QrCodeIn.stop(); html5QrCodeIn.clear(); } catch(e){} }
+                    container.classList.add('hidden');
+                    btnText.innerText = "Buka Kamera Scanner";
+                }
+            } else if(type === 'out') {
+                cameraActiveOut = !cameraActiveOut;
+                const container = document.getElementById('container-camera-out');
+                const btnText = document.getElementById('cam-btn-text-out');
+
+                if(cameraActiveOut) {
+                    container.classList.remove('hidden');
+                    btnText.innerText = "Tutup Kamera";
+                    try {
+                        html5QrCodeOut = new Html5Qrcode("camera-reader-out");
+                        await html5QrCodeOut.start({ facingMode: "environment" }, { fps: 15, qrbox: 220 }, (txt) => {
+                            if(txt) handleBarcodeScanned(txt, 'out');
+                        }, () => {});
+                    } catch(e) { console.error(e); }
+                } else {
+                    if(html5QrCodeOut) { try { await html5QrCodeOut.stop(); html5QrCodeOut.clear(); } catch(e){} }
+                    container.classList.add('hidden');
+                    btnText.innerText = "Buka Kamera Scanner";
+                }
+            } else if(type === 'retur') {
+                cameraActiveRetur = !cameraActiveRetur;
+                const container = document.getElementById('container-camera-retur');
+                const btnText = document.getElementById('cam-btn-text-retur');
+
+                if(cameraActiveRetur) {
+                    container.classList.remove('hidden');
+                    btnText.innerText = "Tutup Kamera";
+                    try {
+                        html5QrCodeRetur = new Html5Qrcode("camera-reader-retur");
+                        await html5QrCodeRetur.start({ facingMode: "environment" }, { fps: 15, qrbox: 220 }, (txt) => {
+                            if(txt) handleBarcodeScanned(txt, 'retur');
+                        }, () => {});
+                    } catch(e) { console.error(e); }
+                } else {
+                    if(html5QrCodeRetur) { try { await html5QrCodeRetur.stop(); html5QrCodeRetur.clear(); } catch(e){} }
+                    container.classList.add('hidden');
+                    btnText.innerText = "Buka Kamera Scanner";
+                }
+            }
+        }
+
+        // Toast Helper
+        function showToast(title, desc, color = 'sky') {
+            const box = document.getElementById('toast-box');
+            const titleEl = document.getElementById('toast-title');
+            const descEl = document.getElementById('toast-desc');
+            const iconEl = document.getElementById('toast-icon');
+
+            titleEl.innerText = title;
+            descEl.innerText = desc;
+
+            if(color === 'sky') {
+                iconEl.className = "w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center text-lg";
+            } else if(color === 'emerald') {
+                iconEl.className = "w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg";
+            } else if(color === 'rose') {
+                iconEl.className = "w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg";
+            } else {
+                iconEl.className = "w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg";
+            }
+
+            box.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                box.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
